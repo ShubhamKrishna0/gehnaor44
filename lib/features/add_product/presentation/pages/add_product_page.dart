@@ -44,31 +44,6 @@ class _AddProductPageState extends State<AddProductPage> {
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _selectedImages = [];
 
-  // Method to serialize the upload request into JSON
-  String _generateUploadRequestJson(ProductUploadRequest uploadRequest) {
-    return jsonEncode({
-      'productName': uploadRequest.productName,
-      'description': uploadRequest.description,
-      'wastage': uploadRequest.wastage,
-      'weight': uploadRequest.weight,
-      'karat': uploadRequest.karat,
-      'categoryName': uploadRequest.categoryName,
-      'categoryId': uploadRequest.categoryId,
-      'subCategoryName': uploadRequest.subCategoryName,
-      'subCategoryId': uploadRequest.subCategoryId,
-      'tagNumber': uploadRequest.tagNumber,
-      'length': uploadRequest.length,
-      'size': uploadRequest.size,
-      'wholesaler': uploadRequest.wholesaler,
-      'wholesalerId': uploadRequest.wholesalerId,
-      'occasion': uploadRequest.occasion,
-      'soulmate': uploadRequest.soulmate,
-      'gifting': uploadRequest.gifting,
-      'gender': uploadRequest.gender,
-      'productType': uploadRequest.productType,
-    });
-  }
-
   Future<void> _pickImages(ImageSource source) async {
     print("Picking images from gallery...");
     final List<XFile>? pickedImages = await _picker.pickMultiImage();
@@ -257,7 +232,7 @@ class _AddProductPageState extends State<AddProductPage> {
       occasion: _selectedOccasion ?? '',
       soulmate: _selectedSoulmate ?? '',
       gifting: _selectedGifting ?? '',
-      gender: _selectedGender == 1 ? 'MEN' : 'WOMEN',
+      gender: _selectedGender == 1 ? 'Male' : 'Female',
       productType: '',
     );
 
@@ -297,52 +272,45 @@ class _AddProductPageState extends State<AddProductPage> {
     var request = http.MultipartRequest('POST', uri)
       ..headers.addAll({
         'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
       })
       ..fields['uploadRequest'] = uploadRequestJson;
 
-    // Step 10: Validate if images are selected before uploading
-    if (_selectedImages.isEmpty) {
-      print("No images selected.");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one image.')),
-      );
-      return;
-    }
-
-    // Step 11: Attach images to the request
+    // Step 10: Attach images to the request
     for (var image in _selectedImages) {
-      print("Attaching image: ${image.path}");
-      var file = await http.MultipartFile.fromPath('images', image.path,
-          contentType: MediaType(
-              'image', image.path.split('.').last)); // Dynamic content type
+      var file = await http.MultipartFile.fromPath(
+        'images',
+        image.path,
+        contentType: MediaType('image', image.path.split('.').last),
+      );
       request.files.add(file);
     }
 
-    // Step 12: Send the request
+    // Step 11: Send the request
     var response = await request.send();
 
-    // Step 13: Handle the response
+    // Step 12: Handle the response
     if (response.statusCode == 200) {
       print("Product uploaded successfully!");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Product uploaded successfully!')),
       );
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              AddProductPage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 500),
-        ),
-      );
+      setState(() {
+        _selectedImages.clear();
+        _productNameController.clear();
+        _descriptionController.clear();
+        _wastageController.clear();
+        _weightController.clear();
+        _selectedCategory = null;
+        _selectedSubCategory = null;
+        _selectedGender = null;
+        _selectedKarat = '18K';
+        _selectedSoulmate = null;
+        _selectedOccasion = null;
+        _selectedGifting = null;
+      });
     } else {
-      print("Failed to upload product. Status code: ${response.statusCode}");
-      // Log the error response body for better debugging
       String responseBody = await response.stream.bytesToString();
+      print("Failed to upload product. Response: $responseBody");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
@@ -351,7 +319,6 @@ class _AddProductPageState extends State<AddProductPage> {
     }
   }
 
-  ///
   @override
   Widget build(BuildContext context) {
     print("Building UI...");
